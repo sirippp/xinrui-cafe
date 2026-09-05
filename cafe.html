@@ -1,0 +1,1433 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>☕</text></svg>">
+<title>咖啡主理人模拟器 ☕ Cozy Cafe</title>
+<style>
+/* ==================== 全局重置 ==================== */
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{width:100%;height:100%;height:100dvh;overflow:hidden;font-family:'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;user-select:none;}
+@supports (height:100dvh){html,body{height:100dvh;}}
+
+/* ==================== CSS 变量 ==================== */
+:root{
+  --c-bg:#FFF8F0;--c-primary:#8B5E3C;--c-primary-light:#D4A574;--c-accent:#E8956B;
+  --c-green:#7DBE8C;--c-pink:#F4B4C4;--c-cream:#FFF4E6;--c-brown:#6B4226;
+  --c-text:#5D4037;--c-text-light:#A1887F;--c-white:#FFFFFF;
+  --c-success:#66BB6A;--c-warn:#FFB74D;--c-danger:#EF5350;--c-gold:#FFD54F;
+  --c-shadow:rgba(139,94,60,.15);--c-shadow-hover:rgba(139,94,60,.28);
+  --radius:14px;--radius-sm:8px;--radius-lg:22px;
+}
+@media(prefers-color-scheme:dark){}
+
+
+
+/* ==================== 顶部状态栏（像素风 HUD） ==================== */
+.top-bar{display:flex;flex-direction:column;padding:4px 10px;background:linear-gradient(180deg,#3A2410,#2A1A0A);box-shadow:0 3px 0 #1A0E04,0 4px 12px rgba(0,0,0,.35);z-index:100;gap:4px;flex-shrink:0;border-bottom:3px solid #C89A5A;}
+.top-row-1{display:flex;align-items:center;gap:4px;flex-wrap:nowrap;}
+.top-row-2{display:flex;align-items:center;justify-content:flex-end;gap:6px;}
+.stats-group{display:flex;gap:4px;flex-wrap:nowrap;align-items:center;}
+.stat-pill{display:flex;align-items:center;gap:4px;background:linear-gradient(180deg,#5C3A16,#3A2410);border-radius:2px;padding:4px 10px;font-size:13px;font-weight:900;color:#FFE9A8;transition:transform .3s;border:2px solid #C89A5A;box-shadow:inset 0 -3px 0 rgba(0,0,0,.35),0 2px 0 rgba(0,0,0,.4);font-family:'PingFang SC','Microsoft YaHei',sans-serif;text-shadow:0 1px 0 #1A0E04;}
+.stat-pill .icon{font-size:15px;}
+.stat-pill .val{font-size:14px;font-weight:900;}
+.stat-pill.money{background:linear-gradient(180deg,#8A5A2B,#5C3A16);color:#FFE9A8;}
+.stat-pill.rep{background:linear-gradient(180deg,#7A4A2E,#5C3A16);color:#FFE9A8;}
+.stat-pill.day{background:linear-gradient(180deg,#5C4A1E,#3A2A0E);color:#FFE9A8;}
+.stat-pill.time{background:linear-gradient(180deg,#3A4A5C,#24303C);color:#FFE9A8;}
+.stat-pill.pop{background:linear-gradient(180deg,#6B3A2B,#4A2410);color:#FFE9A8;}
+.stat-pill.bounce{animation:bounce .5s ease;}
+@keyframes bounce{0%,100%{transform:scale(1);}50%{transform:scale(1.18);}}
+@keyframes shake{0%,100%{transform:translateX(0);}25%{transform:translateX(-4px);}75%{transform:translateX(4px);}}
+.stat-pill.shake{animation:shake .3s ease 2;}
+
+.top-btns{display:flex;gap:6px;}
+.top-btn{height:38px;min-width:38px;padding:0 10px;border:none;border-radius:2px;background:linear-gradient(180deg,#4A2E14,#3A2410);font-size:17px;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:3px;border:2px solid #8A5A2B;box-shadow:0 2px 0 #1A0E04;color:#FFE9C7;}
+.top-btn:hover{background:linear-gradient(180deg,#6B4A2B,#5C3A16);transform:translateY(-1px);}
+.top-btn:active{transform:translateY(2px);box-shadow:0 0 0 #1A0E04;}
+.top-btn.active{background:var(--c-accent);color:#fff;}
+
+/* ==================== 主游戏容器 ==================== */
+#app{display:flex;flex-direction:column;width:100%;height:100%;height:100dvh;overflow:hidden;}
+
+/* ==================== 游戏主区域 ==================== */
+.game-area{flex:1;position:relative;overflow:hidden;}
+.game-area.day-mode{background:url('interior-game-bg.jpg') center/cover no-repeat;transition:background 2s;}
+.game-area.night-mode{background:url('interior-game-bg.jpg') center/cover no-repeat;filter:brightness(.55) sepia(.2);transition:background 2s;}
+.game-area.day-mode::before{content:'';position:absolute;inset:0;background:rgba(0,0,0,.1);z-index:0;pointer-events:none;}
+.game-area.night-mode::before{content:'';position:absolute;inset:0;background:rgba(0,0,0,.15);z-index:0;pointer-events:none;}
+/* 店内墙面装饰（像素风置物架/挂画） */
+.wall-decor{position:absolute;pointer-events:none;z-index:0;}
+.wall-decor .shelf{position:absolute;width:180px;height:8px;background:linear-gradient(180deg,#A9793F,#8A5A2B);border-radius:4px;box-shadow:0 2px 4px rgba(0,0,0,.2);}
+.wall-decor .shelf::before{content:'';position:absolute;left:8px;right:8px;top:-20px;height:20px;background:linear-gradient(180deg,rgba(139,94,60,.35),rgba(139,94,60,.08));}
+.wall-decor .plant{position:absolute;font-size:34px;filter:drop-shadow(0 3px 4px rgba(0,0,0,.25));}
+.wall-decor .frame{position:absolute;width:52px;height:44px;background:linear-gradient(180deg,#8A5A2B,#6B4226);border:3px solid #5C3A16;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:24px;box-shadow:0 3px 6px rgba(0,0,0,.2);}
+.wall-decor .clock{position:absolute;width:44px;height:44px;background:#FFF8F0;border:4px solid #6B4226;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 3px 6px rgba(0,0,0,.2);}
+.wall-decor .menu-board{position:absolute;width:96px;height:64px;background:linear-gradient(180deg,#5C3A16,#4A2E10);border:3px solid #3A1F08;border-radius:8px;box-shadow:0 3px 8px rgba(0,0,0,.3);}
+.wall-decor .menu-board::before{content:'☕';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:22px;opacity:.5;}
+
+/* ==================== 顾客区 ==================== */
+.customer-zone{position:absolute;top:0;left:0;right:0;bottom:150px;overflow:hidden;display:flex;flex-direction:column;z-index:2;}
+
+/* 等待区 */
+.wait-area{flex:0 0 auto;min-height:96px;display:flex;justify-content:center;align-items:flex-start;gap:6px;padding:24px 8px 10px;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none;position:relative;margin:4px 8px;border-radius:10px;border:2px solid rgba(140,100,55,.45);background:rgba(60,36,16,.35);backdrop-filter:blur(1px);-webkit-backdrop-filter:blur(1px);}
+.wait-area::before{content:'等候区';position:absolute;top:2px;left:50%;transform:translateX(-50%);font-size:9px;font-weight:900;color:rgba(255,233,168,.7);letter-spacing:2px;font-family:'PingFang SC','Microsoft YaHei',sans-serif;text-shadow:0 1px 2px rgba(0,0,0,.6);pointer-events:none;z-index:1;}
+.wait-area::-webkit-scrollbar{display:none;}
+.wait-area:empty{min-height:72px;}
+
+/* 吧台座位 */
+.bar-seats{flex:1;display:flex;justify-content:space-around;align-items:flex-end;padding:0 8px 8px;position:relative;}
+.bar-seats::after{content:'';position:absolute;left:0;right:0;bottom:0;height:30px;background:linear-gradient(180deg,#A9793F,#7A4A1E 85%);border-radius:10px 10px 0 0;box-shadow:0 -3px 10px rgba(0,0,0,.18),inset 0 2px 0 rgba(255,255,255,.18);z-index:0;}
+.bar-seat{flex:0 0 80px;max-width:80px;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;position:relative;z-index:1;}
+.bar-seat::after{content:'🪑';font-size:28px;opacity:.2;position:absolute;bottom:4px;}
+.bar-seat.occupied::after{display:none;}
+
+/* 顾客 */
+.customer{position:relative;width:80px;display:flex;flex-direction:column;align-items:center;transition:opacity .6s,transform .6s;cursor:pointer;}
+.customer.walking{animation:walkIn .6s ease-out;}
+@keyframes walkIn{from{transform:translateY(40px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+.customer.seated .c-avatar{animation:bobbing 1.5s ease-in-out infinite;}
+@keyframes bobbing{0%,100%{transform:translateY(0);}50%{transform:translateY(-5px);}}
+.customer .c-avatar{font-size:44px;filter:drop-shadow(0 4px 8px rgba(0,0,0,.15));transition:transform .3s;width:44px;height:44px;}
+.customer .c-avatar svg,.customer .c-avatar img{width:100%;height:100%;display:block;}
+.customer:hover .c-avatar{transform:scale(1.1);}
+.customer .c-bubble{position:absolute;top:-52px;left:50%;transform:translateX(-50%);background:#FFF6E5;border-radius:0;padding:5px 10px;box-shadow:0 3px 0 rgba(0,0,0,.25);font-size:12px;white-space:nowrap;z-index:10;display:flex;align-items:center;gap:5px;border:2px solid #8A5A2B;}
+.customer .c-bubble::after{content:'';position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);border:6px solid transparent;border-top-color:#8A5A2B;}
+.customer .c-bubble::before{content:'';position:absolute;bottom:-3px;left:50%;transform:translateX(-50%);border:4px solid transparent;border-top-color:#FFF6E5;}
+.customer .c-bubble .order-icon{font-size:18px;}
+.customer .c-patience{position:absolute;top:-26px;left:50%;transform:translateX(-50%);width:56px;height:6px;background:#1A0E04;border:1px solid #8A5A2B;overflow:hidden;}
+.customer .c-patience .fill{height:100%;background:#8B9E6B;}
+
+/* 等待区顾客：无气泡，放大头像，下移不挡标题 */
+.wait-area .customer{transform:scale(1);transform-origin:bottom center;}
+.wait-area .customer .c-avatar{font-size:40px;}
+.wait-area .customer .c-bubble{display:none !important;}
+.wait-area .customer .c-patience{width:44px;top:-6px;}
+
+/* 顾客离开动画 */
+.customer.leaving{opacity:0;transform:translateX(100px) scale(.8);transition:all 1.2s ease;}
+.customer.angry-leave{opacity:0;transform:translateX(-100px) scale(.8);transition:all 1.2s ease;}
+
+/* ==================== 制作区（像素风木台） ==================== */
+.craft-zone{position:absolute;bottom:0;left:0;right:0;height:150px;background:linear-gradient(180deg,#7A4A1E 0%,#5C3A16 8%,#4A2E10 100%);border-top:4px solid #C89A5A;display:flex;align-items:center;justify-content:flex-start;gap:10px;padding:10px 14px;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;z-index:50;scrollbar-width:none;-ms-overflow-style:none;box-shadow:0 -3px 0 #2A1A0A;}
+.craft-zone::-webkit-scrollbar{display:none;}
+
+.recipe-btn{width:86px;height:86px;border:none;border-radius:3px;background:linear-gradient(180deg,#FFF6E5,#F0DFC0);box-shadow:inset 0 -3px 0 rgba(0,0,0,.15),0 3px 0 #3A2410;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;transition:all .15s;position:relative;flex-shrink:0;border:2px solid #8A5A2B;}
+.recipe-btn:hover:not(:disabled){transform:translateY(-2px);box-shadow:inset 0 -3px 0 rgba(0,0,0,.15),0 5px 0 #3A2410;}
+.recipe-btn:active:not(:disabled){transform:translateY(2px);box-shadow:inset 0 -3px 0 rgba(0,0,0,.15),0 1px 0 #3A2410;}
+.recipe-btn:disabled{cursor:not-allowed;}
+  .recipe-btn.locked{filter:grayscale(.5);opacity:.65;}
+  .recipe-btn .r-icon{width:40px;height:40px;display:flex;align-items:center;justify-content:center;}
+  .recipe-btn .r-icon svg,.recipe-btn .r-icon img{width:40px;height:40px;display:block;}
+.recipe-btn .r-name{font-size:10px;font-weight:900;color:#5C3A16;text-align:center;line-height:1.1;}
+.recipe-btn .r-cost{font-size:9px;color:#8A5A2B;font-weight:700;}
+.recipe-btn.crafting{animation:crafting .8s ease infinite;}
+@keyframes crafting{0%,100%{transform:scale(1);box-shadow:0 2px 8px var(--c-shadow);}50%{transform:scale(1.08);box-shadow:0 4px 20px var(--c-accent);}}
+.recipe-btn.locked{filter:grayscale(.5);opacity:.65;}
+.recipe-btn .lock-icon{position:absolute;top:2px;right:2px;font-size:14px;}
+.recipe-btn .unlock-lv{position:absolute;bottom:2px;left:2px;font-size:8px;background:var(--c-primary);color:#fff;padding:1px 4px;border-radius:2px;}
+/* 制作进度条 */
+.recipe-btn .craft-progress{position:absolute;bottom:0;left:0;right:0;height:4px;background:rgba(0,0,0,.2);border-radius:0 0 2px 2px;overflow:hidden;display:none;}
+.recipe-btn .craft-progress .bar{height:100%;width:0%;background:linear-gradient(90deg,#FFD54F,#FF8A65);transition:width .1s linear;}
+.recipe-btn.crafting .craft-progress{display:block;}
+
+/* ==================== 弹窗系统 ==================== */
+.overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(93,64,55,.5);backdrop-filter:blur(4px);z-index:1000;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .3s;}
+.overlay.show{opacity:1;pointer-events:auto;}
+.panel{background:var(--c-white);border-radius:var(--radius-lg);padding:28px;max-width:560px;width:92%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);transform:scale(.85);transition:transform .3s;position:relative;}
+.overlay.show .panel{transform:scale(1);}
+.panel-title{font-size:22px;font-weight:800;color:var(--c-primary);margin-bottom:16px;display:flex;align-items:center;gap:8px;}
+.panel-close{position:absolute;top:16px;right:16px;width:36px;height:36px;border:none;border-radius:50%;background:var(--c-cream);font-size:18px;cursor:pointer;color:var(--c-text);transition:all .2s;}
+.panel-close:hover{background:var(--c-pink);transform:rotate(90deg);}
+
+/* ==================== 菜单/升级面板 ==================== */
+.upgrade-item{display:flex;align-items:center;gap:14px;padding:14px;background:var(--c-cream);border-radius:var(--radius);margin-bottom:10px;transition:all .2s;border:2px solid transparent;}
+.upgrade-item:hover{border-color:var(--c-primary-light);}
+.upgrade-item.maxed{opacity:.6;}
+.upg-icon{font-size:36px;width:50px;height:50px;display:flex;align-items:center;justify-content:center;background:var(--c-white);border-radius:var(--radius-sm);flex-shrink:0;}
+.upg-info{flex:1;min-width:0;}
+.upg-name{font-size:15px;font-weight:700;color:var(--c-text);}
+.upg-desc{font-size:12px;color:var(--c-text-light);margin-top:2px;}
+.upg-level{display:flex;gap:3px;margin-top:4px;}
+.upg-level .dot{width:10px;height:10px;border-radius:50%;background:#E0E0E0;}
+.upg-level .dot.on{background:var(--c-accent);}
+.upg-btn{padding:8px 16px;border:none;border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;transition:all .2s;white-space:nowrap;flex-shrink:0;}
+.upg-btn.affordable{background:linear-gradient(135deg,var(--c-accent),var(--c-primary));color:#fff;}
+.upg-btn.affordable:hover{transform:scale(1.05);box-shadow:0 4px 12px var(--c-shadow-hover);}
+.upg-btn.disabled{background:#E0E0E0;color:#9E9E9E;cursor:not-allowed;}
+.upg-btn.maxed{background:var(--c-gold);color:var(--c-brown);cursor:default;}
+
+/* ==================== 日结面板 ==================== */
+.day-result{text-align:center;}
+.day-result .big-emoji{font-size:64px;margin:10px 0;}
+.day-result h2{font-size:24px;color:var(--c-primary);margin-bottom:8px;}
+.day-result .day-num{font-size:16px;color:var(--c-text-light);margin-bottom:16px;}
+.result-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:16px 0;}
+.result-card{background:var(--c-cream);border-radius:var(--radius);padding:14px;text-align:center;}
+.result-card .label{font-size:12px;color:var(--c-text-light);margin-bottom:4px;}
+.result-card .value{font-size:22px;font-weight:800;color:var(--c-primary);}
+.result-card.income .value{color:var(--c-success);}
+.result-card.expense .value{color:var(--c-danger);}
+.result-card.rep .value{color:#9C27B0;}
+.result-card.cust .value{color:#1565C0;}
+.review-box{background:var(--c-cream);border-radius:var(--radius);padding:12px;margin:10px 0;text-align:left;}
+.review-box .review{font-size:13px;color:var(--c-text);padding:4px 0;border-bottom:1px solid rgba(0,0,0,.05);}
+.review-box .review:last-child{border:none;}
+.btn-primary{display:block;width:100%;padding:14px;border:none;border-radius:var(--radius);background:linear-gradient(135deg,var(--c-accent),var(--c-primary));color:#fff;font-size:16px;font-weight:800;cursor:pointer;transition:all .2s;margin-top:12px;}
+.btn-primary:hover{transform:scale(1.02);box-shadow:0 6px 20px var(--c-shadow-hover);}
+
+/* ==================== 开始界面（封面） ==================== */
+.start-screen{position:fixed;top:0;left:0;right:0;bottom:0;z-index:2000;display:flex;align-items:center;justify-content:center;flex-direction:column;text-align:center;transition:opacity .6s;background:#2A1D12;overflow:hidden;}
+.start-screen.hide{opacity:0;pointer-events:none;}
+/* 封面背景图：像素风咖啡店外景 */
+.start-bg{position:absolute;top:0;left:0;right:0;bottom:0;background:url('cover-exterior.jpg') center 26%/cover no-repeat;filter:brightness(.92) saturate(1.05);}
+.start-screen::before{content:'';position:absolute;top:0;left:0;right:0;bottom:0;background:linear-gradient(180deg,rgba(20,12,6,.08) 0%,rgba(20,12,6,0) 36%,rgba(20,12,6,.5) 74%,rgba(20,12,6,.88) 100%);z-index:1;}
+.start-screen::after{content:'';position:absolute;top:0;left:0;right:0;bottom:0;background:radial-gradient(120% 90% at 50% 42%,rgba(255,225,170,.18),transparent 60%);z-index:1;pointer-events:none;}
+/* 顶部小标语 */
+.start-tag{position:relative;z-index:2;font-family:'Press Start 2P',monospace;font-size:11px;color:#FFE9C7;text-shadow:0 2px 0 rgba(60,32,10,.9);letter-spacing:1px;background:rgba(60,32,10,.6);border:2px solid rgba(255,214,150,.65);padding:8px 16px;border-radius:2px;margin-top:max(env(safe-area-inset-top),14px);}
+/* 标题区：两行像素标题（实底木质招牌板） */
+.start-title-wrap{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;gap:6px;margin-top:34px;background:#2A1608;padding:18px 40px 20px;border-radius:4px;box-shadow:0 0 0 4px #8A5A2B,0 7px 0 #5C3A16,0 16px 34px rgba(0,0,0,.55);border:3px solid #C89A5A;}
+.start-title-wrap::after{content:'';position:absolute;top:5px;left:5px;right:5px;bottom:5px;border:2px dashed rgba(255,214,150,.3);border-radius:2px;pointer-events:none;}
+.start-title{font-family:'PingFang SC','Microsoft YaHei','Heiti SC',sans-serif;font-size:52px;font-weight:900;color:#FFF6E5;letter-spacing:6px;line-height:1.25;text-shadow:0 3px 0 #8A4B22,0 6px 0 #5C2E12,0 10px 22px rgba(0,0,0,.6);}
+.start-title-sub{font-family:'PingFang SC','Microsoft YaHei','Heiti SC',sans-serif;font-size:26px;font-weight:900;color:#FFE9A8;letter-spacing:10px;text-shadow:0 2px 0 #8A4B22,0 5px 0 #5C2E12,0 8px 14px rgba(0,0,0,.6);}
+/* 副标题描述 */
+.start-sub{position:relative;z-index:2;font-size:13px;line-height:1.9;color:#FFF3DD;text-align:center;text-shadow:0 2px 3px rgba(0,0,0,.85),0 0 8px rgba(0,0,0,.35);background:rgba(20,12,6,.10);border:1px solid rgba(255,214,150,.12);border-radius:2px;padding:8px 16px;max-width:300px;margin-top:14px;}
+
+/* 开始按钮 */
+.start-btn{position:relative;z-index:2;margin-top:18px;padding:15px 46px;border:none;border-radius:4px;background:linear-gradient(180deg,#FFB46B,#E07B39);color:#4A2408;font-size:17px;font-weight:900;cursor:pointer;transition:all .25s;box-shadow:0 0 0 3px #7A3E16,0 6px 0 #7A3E16,0 12px 28px rgba(0,0,0,.4);font-family:'Press Start 2P','PingFang SC','Microsoft YaHei',monospace;letter-spacing:2px;}
+.start-btn:hover{transform:translateY(-2px);box-shadow:0 0 0 3px #7A3E16,0 8px 0 #7A3E16,0 14px 30px rgba(0,0,0,.4);}
+.start-btn:active{transform:translateY(4px);box-shadow:0 0 0 3px #7A3E16,0 2px 0 #7A3E16;}
+.start-tips{position:relative;z-index:2;display:flex;gap:10px;margin-top:20px;flex-wrap:wrap;justify-content:center;padding:0 16px;}
+.start-tip{background:rgba(42,26,10,.55);padding:7px 14px;border-radius:2px;font-size:11px;color:#FFF3D6;box-shadow:0 3px 0 rgba(20,10,4,.5);border:2px solid #8A5A2B;font-weight:600;}
+/* 封面切换提示 */
+.start-switch{position:relative;z-index:2;margin-top:14px;font-size:11px;color:#FFF3D6;opacity:.95;letter-spacing:1px;text-shadow:0 1px 3px rgba(0,0,0,.9);cursor:pointer;user-select:none;background:rgba(30,18,8,.45);padding:5px 12px;border-radius:2px;border:1px solid rgba(255,214,150,.35);}
+.start-switch:hover{opacity:1;transform:scale(1.05);}
+
+/* ==================== 过场画面（内景） ==================== */
+.intro-screen{position:fixed;top:0;left:0;right:0;bottom:0;background:#2A1D0D;z-index:2200;display:flex;align-items:center;justify-content:center;flex-direction:column;text-align:center;opacity:0;pointer-events:none;transition:opacity .6s;overflow:hidden;}
+.intro-screen.show{opacity:1;pointer-events:auto;}
+.intro-bg{position:absolute;top:0;left:0;right:0;bottom:0;background:url('interior.jpg') center 30%/cover no-repeat;filter:brightness(.88) saturate(1.05);}
+.intro-screen::before{content:'';position:absolute;top:0;left:0;right:0;bottom:0;background:linear-gradient(180deg,rgba(25,15,6,.35) 0%,rgba(25,15,6,0) 40%,rgba(25,15,6,.62) 82%,rgba(25,15,6,.9) 100%);z-index:1;}
+.intro-content{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;gap:14px;padding:0 20px;}
+.intro-title{font-family:'Press Start 2P','PingFang SC','Microsoft YaHei',monospace;font-size:22px;font-weight:900;color:#FFE9C7;letter-spacing:3px;text-shadow:0 2px 0 #8A4B22,0 4px 0 #5C2E12,0 8px 16px rgba(0,0,0,.5);}
+.intro-sub{font-size:15px;color:#FFF3DD;line-height:1.9;text-align:center;text-shadow:0 2px 4px rgba(0,0,0,.7);background:rgba(30,18,8,.4);border-radius:12px;padding:10px 18px;max-width:330px;}
+.intro-btn{margin-top:8px;padding:14px 44px;border:none;border-radius:4px;background:linear-gradient(180deg,#FFB46B,#E8843F);color:#4A2408;font-size:16px;font-weight:900;cursor:pointer;box-shadow:0 0 0 3px #7A3E10,0 6px 0 #7A3E10,0 12px 24px rgba(0,0,0,.4);font-family:'Press Start 2P','PingFang SC','Microsoft YaHei',monospace;letter-spacing:2px;transition:all .25s;}
+.intro-btn:hover{transform:translateY(-2px);}
+.intro-btn:active{transform:translateY(4px);box-shadow:0 0 0 3px #7A3E10,0 2px 0 #7A3E10;}
+
+/* ==================== 浮动文字 ==================== */
+.float-text{position:absolute;font-size:20px;font-weight:900;pointer-events:none;z-index:500;animation:floatUp 1.5s ease-out forwards;text-shadow:0 2px 4px rgba(0,0,0,.2);}
+@keyframes floatUp{0%{opacity:1;transform:translateY(0)scale(.8);}30%{transform:translateY(-20px)scale(1.2);}100%{opacity:0;transform:translateY(-60px)scale(1);}}
+.float-text.money{color:#E65100;}
+.float-text.rep{color:#9C27B0;}
+.float-text.bad{color:var(--c-danger);}
+
+/* ==================== 通知 ==================== */
+.notify{position:fixed;top:70px;left:50%;transform:translateX(-50%);background:var(--c-white);border-radius:var(--radius);padding:12px 24px;box-shadow:0 4px 20px var(--c-shadow-hover);z-index:1500;font-size:14px;font-weight:700;color:var(--c-text);opacity:0;pointer-events:none;transition:all .3s;}
+.notify.show{opacity:1;transform:translateX(-50%)translateY(10px);}
+
+/* ==================== 高峰提示（像素风） ==================== */
+.peak-notify{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(60,36,16,.82);border:3px solid #1A0E04;box-shadow:0 0 0 2px #8A5A2B,0 6px 0 #1A0E04;padding:16px 40px;z-index:2000;opacity:0;pointer-events:none;font-family:'PingFang SC','Microsoft YaHei',sans-serif;text-align:center;}
+.peak-notify.show{opacity:1;}
+.peak-notify .peak-text{font-size:18px;font-weight:900;color:#FFE9A8;letter-spacing:3px;text-shadow:2px 2px 0 #1A0E04;line-height:1.4;}
+
+/* ==================== 等级条 ==================== */
+.level-bar{height:6px;background:#1A0E04;border-radius:0;overflow:hidden;margin-top:2px;flex:1;max-width:100px;border:1px solid #8A5A2B;}
+.level-bar .lv-fill{height:100%;background:linear-gradient(90deg,#C89A5A,#FFD54F);transition:width .5s;}
+
+/* ==================== 指引 ==================== */
+.guide-arrow{position:absolute;font-size:40px;animation:arrowBounce .8s ease-in-out infinite;z-index:200;pointer-events:none;}
+@keyframes arrowBounce{0%,100%{transform:translateY(0);}50%{transform:translateY(10px);}}
+
+/* ==================== 商店Tab ==================== */
+.shop-tabs{display:flex;gap:0;margin-bottom:12px;border-radius:10px;overflow:hidden;}
+.shop-tab{flex:1;padding:10px;border:none;font-size:14px;font-weight:800;cursor:pointer;background:#E8DDD0;color:#8A7A6A;transition:all .2s;}
+.shop-tab.active{background:linear-gradient(135deg,#E8956B,#8B5E3C);color:#fff;}
+
+/* ==================== 新手引导 ==================== */
+.tutorial-overlay{position:fixed;inset:0;z-index:3000;pointer-events:none;}
+.tutorial-mask{position:absolute;inset:0;background:rgba(0,0,0,.6);transition:all .3s;}
+.tutorial-hole{position:absolute;background:transparent;box-shadow:0 0 0 9999px rgba(0,0,0,.6);border-radius:12px;transition:all .3s;}
+.tutorial-bubble{position:absolute;background:#FFF6E5;border:3px solid #8B5E3C;border-radius:14px;padding:14px 18px;max-width:240px;z-index:3010;box-shadow:0 4px 0 #5C3A16,0 8px 20px rgba(0,0,0,.3);transition:all .3s;pointer-events:auto;}
+.tutorial-bubble .tut-text{font-size:13px;font-weight:700;color:#5D4037;line-height:1.5;}
+.tutorial-bubble .tut-btn{display:block;margin-top:10px;width:100%;padding:8px;border:none;border-radius:8px;background:linear-gradient(135deg,#E8956B,#8B5E3C);color:#fff;font-size:13px;font-weight:800;cursor:pointer;}
+.tutorial-bubble .tut-btn:active{transform:translateY(2px);}
+
+/* ==================== 装饰 ==================== */
+.deco-cloud{position:absolute;font-size:40px;opacity:.3;animation:cloudDrift 20s linear infinite;pointer-events:none;}
+@keyframes cloudDrift{from{transform:translateX(-50px);}to{transform:translateX(calc(100vw + 50px));}}
+
+/* ==================== 响应式 ==================== */
+@media(max-width:600px){
+  .top-bar{padding:4px 8px;gap:3px;}
+  .top-row-1{gap:3px;}
+  .top-row-2{gap:4px;}
+  .stats-group{flex-wrap:nowrap;gap:3px;}
+  .stat-pill{font-size:10px;padding:3px 5px;}
+  .stat-pill .icon{font-size:12px;}
+  .stat-pill .val{font-size:11px;}
+  .top-btn{height:30px;font-size:13px;min-width:30px;padding:0 6px;gap:2px;border-radius:2px;}
+  .level-bar{max-width:60px;}
+  .recipe-btn{width:82px;height:82px;}
+  .recipe-btn .r-icon{width:42px;height:42px;}
+  .recipe-btn .r-icon svg,.recipe-btn .r-icon img{width:42px;height:42px;}
+  .panel{padding:20px;}
+  .panel-title{font-size:18px;}
+  .start-tag{font-size:9px;padding:6px 12px;}
+  .start-title{font-size:34px;letter-spacing:3px;text-shadow:0 2px 0 #8A4B22,0 4px 0 #5C2E12,0 8px 16px rgba(0,0,0,.5);}
+  .start-title-sub{font-size:19px;letter-spacing:6px;color:#FFE9A8;text-shadow:0 2px 0 #5C2E12,0 4px 0 #3A1B08,0 6px 10px rgba(0,0,0,.5);}
+  .start-title-wrap{margin-top:24px;padding:14px 24px 16px;gap:5px;}
+  .start-sub{font-size:11px;max-width:270px;padding:6px 10px;margin-top:10px;}
+  .start-btn{padding:14px 36px;font-size:14px;}
+  .start-tip{font-size:10px;padding:6px 10px;}
+  .intro-title{font-size:16px;}
+  .intro-sub{font-size:13px;max-width:280px;}
+  .intro-btn{padding:12px 36px;font-size:14px;}
+  .craft-zone{height:110px;padding:6px 10px;gap:8px;}
+  .customer-zone{bottom:110px;}
+  .bar-seat{flex:0 0 64px;max-width:64px;}
+  .bar-seat::after{font-size:22px;}
+  .customer{width:64px;}
+  .customer .c-avatar{width:36px;height:36px;}
+  .customer .c-bubble{font-size:10px;padding:4px 8px;top:-44px;}
+  .customer .c-patience{width:46px;top:-22px;}
+  .wait-area .customer .c-avatar{width:28px;height:28px;}
+  .wait-area .customer .c-bubble{font-size:9px;padding:3px 6px;top:-36px;}
+  .wait-area .customer .c-patience{width:40px;top:-18px;}
+  /* 手机竖屏：吧台区抬高居中 */
+  .bar-seats{align-items:flex-end;padding:0 4px 6px;justify-content:space-evenly;}
+  .bar-seat{flex:0 0 68px;max-width:68px;}
+  .customer{width:68px;}
+  .customer .c-avatar{width:64px;height:64px;}
+  .customer .c-bubble{font-size:11px;padding:5px 10px;top:-60px;}
+  .customer .c-patience{width:50px;top:-14px;z-index:11;}
+  .wait-area{min-height:92px;padding:28px 6px 4px;}
+  .wait-area .customer .c-avatar{width:48px;height:48px;}
+  .wait-area .customer .c-bubble{display:none !important;}
+  .wait-area .customer .c-patience{width:42px;top:-10px;}
+}
+</style>
+</head>
+<body>
+<!-- ==================== 开始界面（封面） ==================== -->
+<div class="start-screen" id="startScreen">
+  <div class="start-bg" id="startBg"></div>
+  <div class="start-tag">☕ 像素咖啡馆</div>
+  <div class="start-title-wrap">
+    <div class="start-title">咖啡主理人</div>
+    <div class="start-title-sub">模拟器</div>
+  </div>
+  <div class="start-sub">经营你的温馨小咖啡馆<br>制作饮品美食，服务顾客，赚取金币升级<br>打造人气店铺！</div>
+  <button class="start-btn" onclick="showIntro()">▶ 开始营业</button>
+  <div class="start-tips">
+    <div class="start-tip">🎯 点击下方菜单制作饮品</div>
+    <div class="start-tip">👤 点击顾客头上的气泡送上饮品</div>
+    <div class="start-tip">⭐ 升级解锁更多品类</div>
+  </div>
+  <div class="start-switch" onclick="toggleCover()">🔄 切换封面视角</div>
+</div>
+
+<!-- ==================== 过场画面（内景） ==================== -->
+<div class="intro-screen" id="introScreen">
+  <div class="intro-bg"></div>
+  <div class="intro-content">
+    <div class="intro-title">欢迎光临</div>
+    <div class="intro-sub">推开木质店门，咖啡香扑面而来。<br>吧台旁的猫咪伸了个懒腰，<br>今天，也要从一杯好咖啡开始。</div>
+    <button class="intro-btn" onclick="startGame()">进入咖啡馆</button>
+  </div>
+</div>
+<!-- ====== 主游戏 ====== -->
+<div id="app">
+  <!-- 顶部状态栏 -->
+  <div class="top-bar">
+    <div class="top-row-1">
+      <div class="stats-group">
+        <div class="stat-pill money"><span class="icon">💰</span><span class="val" id="sMoney">300</span></div>
+        <div class="stat-pill rep"><span class="icon">⭐</span><span class="val" id="sRep">50</span></div>
+        <div class="stat-pill day"><span class="icon">📅</span><span class="val" id="sDay">第一天</span></div>
+        <div class="stat-pill time"><span class="icon">🕐</span><span class="val" id="sTime">09:00</span></div>
+        <div class="stat-pill pop"><span class="icon">🔥</span><span class="val" id="sPop">Lv.1</span></div>
+      </div>
+    </div>
+    <div class="top-row-2">
+      <button class="top-btn" onclick="openShop()" title="升级商店">🛒<span style="font-size:10px;margin-left:2px;">商店</span></button>
+      <button class="top-btn" onclick="openThemes()" title="主题换装">🎨<span style="font-size:10px;margin-left:2px;">主题</span></button>
+      <button class="top-btn" onclick="toggleMute()" id="muteBtn" title="静音">🔊</button>
+      <button class="top-btn" onclick="pauseGame()" id="pauseBtn" title="暂停">⏸️</button>
+    </div>
+  </div>
+
+  <!-- 游戏主区域 -->
+  <div class="game-area day-mode" id="gameArea">
+
+    <!-- 顾客区 -->
+    <div class="customer-zone" id="customerZone">
+      <div class="wait-area" id="waitArea"></div>
+      <div class="bar-seats" id="barSeats">
+        <div class="bar-seat" data-seat="0"></div>
+        <div class="bar-seat" data-seat="1"></div>
+        <div class="bar-seat" data-seat="2"></div>
+        <div class="bar-seat" data-seat="3"></div>
+      </div>
+    </div>
+
+    <!-- 制作区 -->
+    <div class="craft-zone" id="craftZone"></div>
+  </div>
+</div>
+
+<!-- ==================== 弹窗 ==================== -->
+<div class="overlay" id="overlay">
+  <div class="panel" id="panel"></div>
+</div>
+
+<!-- ==================== 通知 ==================== -->
+<div class="notify" id="notify"></div>
+<div class="peak-notify" id="peakNotify"><div class="peak-text" id="peakText"></div></div>
+
+<!-- ==================== 新手引导 ==================== -->
+<div class="tutorial-overlay" id="tutorialOverlay" style="display:none;">
+  <div class="tutorial-hole" id="tutorialHole"></div>
+  <div class="tutorial-bubble" id="tutorialBubble">
+    <div class="tut-text" id="tutText"></div>
+    <button class="tut-btn" id="tutBtn" onclick="nextTutorialStep()">知道了</button>
+  </div>
+</div>
+
+<script>
+// ====================================================================
+// ==================== 音效引擎（Web Audio API 程序化生成） ====================
+// ====================================================================
+let audioCtx=null;
+let muted=false;
+function initAudio(){
+  if(!audioCtx){
+    try{audioCtx=new (window.AudioContext||window.webkitAudioContext)();}catch(e){}
+  }
+  if(audioCtx&&audioCtx.state==='suspended')audioCtx.resume();
+}
+function toggleMute(){
+  muted=!muted;
+  let btn=$('muteBtn');
+  if(btn)btn.textContent=muted?'🔇':'🔊';
+  if(btn)btn.title=muted?'取消静音':'静音';
+}
+// 推门音效：低频吱嘎声 + 门轴摩擦
+function sfxDoor(){
+  if(muted)return;
+  if(!audioCtx)return;
+  let now=audioCtx.currentTime;
+  // 门轴摩擦（低频锯齿波，频率下滑模拟门被推开）
+  let osc=audioCtx.createOscillator();
+  let gain=audioCtx.createGain();
+  osc.type='sawtooth';
+  osc.frequency.setValueAtTime(180,now);
+  osc.frequency.exponentialRampToValueAtTime(80,now+0.25);
+  gain.gain.setValueAtTime(0,now);
+  gain.gain.linearRampToValueAtTime(0.12,now+0.03);
+  gain.gain.linearRampToValueAtTime(0.08,now+0.15);
+  gain.gain.exponentialRampToValueAtTime(0.001,now+0.35);
+  // 低通滤波让声音更闷更真实
+  let filter=audioCtx.createBiquadFilter();
+  filter.type='lowpass';
+  filter.frequency.value=600;
+  osc.connect(filter);filter.connect(gain);gain.connect(audioCtx.destination);
+  osc.start(now);osc.stop(now+0.4);
+  // 叠加一声闷响（开门后的碰撞）
+  let buf=audioCtx.createBuffer(1,0.03*audioCtx.sampleRate,audioCtx.sampleRate);
+  let data=buf.getChannelData(0);
+  for(let i=0;i<data.length;i++)data[i]=(Math.random()*2-1)*Math.exp(-i/100);
+  let noise=audioCtx.createBufferSource();
+  noise.buffer=buf;
+  let noiseGain=audioCtx.createGain();
+  noiseGain.gain.setValueAtTime(0.15,now+0.2);
+  noiseGain.gain.exponentialRampToValueAtTime(0.001,now+0.3);
+  noise.connect(noiseGain);noiseGain.connect(audioCtx.destination);
+  noise.start(now+0.2);
+  // 风铃跟随推门响起
+  setTimeout(sfxBell,200);
+}
+// 顾客出现：风铃声（多个高频衰减正弦波叠加）
+function sfxBell(){
+  if(muted)return;
+  if(!audioCtx)return;
+  let now=audioCtx.currentTime;
+  let freqs=[1318,1760,2093,2637];
+  freqs.forEach((f,i)=>{
+    let osc=audioCtx.createOscillator();
+    let gain=audioCtx.createGain();
+    osc.type='sine';
+    osc.frequency.value=f;
+    gain.gain.setValueAtTime(0,now+i*0.02);
+    gain.gain.linearRampToValueAtTime(0.22,now+i*0.02+0.01);
+    gain.gain.exponentialRampToValueAtTime(0.001,now+0.9+i*0.02);
+    osc.connect(gain);gain.connect(audioCtx.destination);
+    osc.start(now+i*0.02);osc.stop(now+1.0+i*0.02);
+  });
+}
+// 制作完成：清脆"叮"声（升频正弦波+短衰减）
+function sfxDing(){
+  if(muted)return;
+  if(!audioCtx)return;
+  let now=audioCtx.currentTime;
+  let osc=audioCtx.createOscillator();
+  let gain=audioCtx.createGain();
+  osc.type='sine';
+  osc.frequency.setValueAtTime(800,now);
+  osc.frequency.exponentialRampToValueAtTime(1600,now+0.05);
+  gain.gain.setValueAtTime(0,now);
+  gain.gain.linearRampToValueAtTime(0.25,now+0.01);
+  gain.gain.exponentialRampToValueAtTime(0.001,now+0.4);
+  osc.connect(gain);gain.connect(audioCtx.destination);
+  osc.start(now);osc.stop(now+0.5);
+  // 叠加一个泛音
+  let osc2=audioCtx.createOscillator();
+  let gain2=audioCtx.createGain();
+  osc2.type='sine';
+  osc2.frequency.setValueAtTime(2400,now);
+  gain2.gain.setValueAtTime(0,now);
+  gain2.gain.linearRampToValueAtTime(0.1,now+0.01);
+  gain2.gain.exponentialRampToValueAtTime(0.001,now+0.3);
+  osc2.connect(gain2);gain2.connect(audioCtx.destination);
+  osc2.start(now);osc2.stop(now+0.35);
+}
+// 交付顾客：收银机声（咔哒+硬币叮当）
+function sfxCash(){
+  if(muted)return;
+  if(!audioCtx)return;
+  let now=audioCtx.currentTime;
+  // 咔哒声（短噪声脉冲）
+  let buf=audioCtx.createBuffer(1,0.05*audioCtx.sampleRate,audioCtx.sampleRate);
+  let data=buf.getChannelData(0);
+  for(let i=0;i<data.length;i++)data[i]=(Math.random()*2-1)*Math.exp(-i/200);
+  let noise=audioCtx.createBufferSource();
+  noise.buffer=buf;
+  let noiseGain=audioCtx.createGain();
+  noiseGain.gain.setValueAtTime(0.2,now);
+  noiseGain.gain.exponentialRampToValueAtTime(0.001,now+0.06);
+  noise.connect(noiseGain);noiseGain.connect(audioCtx.destination);
+  noise.start(now);
+  // 硬币叮当声（两个高频正弦波）
+  [1568,2349].forEach((f,i)=>{
+    let osc=audioCtx.createOscillator();
+    let gain=audioCtx.createGain();
+    osc.type='sine';
+    osc.frequency.value=f;
+    let t=now+0.06+i*0.04;
+    gain.gain.setValueAtTime(0,t);
+    gain.gain.linearRampToValueAtTime(0.18,t+0.01);
+    gain.gain.exponentialRampToValueAtTime(0.001,t+0.5);
+    osc.connect(gain);gain.connect(audioCtx.destination);
+    osc.start(t);osc.stop(t+0.55);
+  });
+}
+
+// ====================================================================
+// ==================== 游戏数据配置 ====================
+// ====================================================================
+const RECIPES = [
+  {id:'espresso',icon:'☕',name:'美式咖啡',cost:5,price:12,craftTime:1500,unlockLv:1,shopCost:0,pxId:'espresso'},
+  {id:'latte',icon:'🥛',name:'拿铁',cost:8,price:18,craftTime:2000,unlockLv:1,shopCost:0,pxId:'latte'},
+  {id:'cookie',icon:'🍪',name:'黄油饼干',cost:5,price:14,craftTime:1500,unlockLv:2,shopCost:100,pxId:'cookie'},
+  {id:'juice',icon:'🧃',name:'鲜榨果汁',cost:6,price:16,craftTime:1800,unlockLv:2,shopCost:120,pxId:'juice'},
+  {id:'matcha',icon:'🍵',name:'抹茶',cost:7,price:18,craftTime:2000,unlockLv:2,shopCost:150,pxId:'matcha'},
+  {id:'cappuccino',icon:'☕',name:'卡布奇诺',cost:8,price:22,craftTime:2200,unlockLv:2,shopCost:200,pxId:'cappuccino'},
+  {id:'cone',icon:'🍦',name:'甜筒',cost:7,price:20,craftTime:2200,unlockLv:3,shopCost:250,pxId:'cone'},
+  {id:'croissant',icon:'🥐',name:'牛角包',cost:8,price:24,craftTime:2200,unlockLv:3,shopCost:300,pxId:'croissant'},
+  {id:'mocha',icon:'☕',name:'摩卡',cost:10,price:28,craftTime:2500,unlockLv:3,shopCost:400,pxId:'mocha'},
+  {id:'cake',icon:'🍰',name:'草莓蛋糕',cost:12,price:34,craftTime:3000,unlockLv:3,shopCost:500,pxId:'cake'},
+  {id:'boba',icon:'🧋',name:'珍珠奶茶',cost:9,price:28,craftTime:2200,unlockLv:4,shopCost:700,pxId:'boba'},
+  {id:'sandwich',icon:'🥪',name:'三明治',cost:14,price:42,craftTime:3500,unlockLv:5,shopCost:1000,pxId:'sandwich'},
+  {id:'donut',icon:'🍩',name:'甜甜圈',cost:12,price:38,craftTime:3200,unlockLv:5,shopCost:1200,pxId:'donut'},
+  {id:'icecream',icon:'🍨',name:'冰淇淋',cost:15,price:48,craftTime:3800,unlockLv:5,shopCost:1500,pxId:'icecream'},
+];
+
+const COMBOS=[
+  {id:'combo_breakfast',icon:'🌅',name:'早餐套餐',desc:'美式+牛角包',cost:13,price:36,craftTime:3500,shopCost:1000,req:['espresso','croissant']},
+  {id:'combo_afternoon',icon:'🌇',name:'下午茶套餐',desc:'拿铁+甜甜圈',cost:20,price:52,craftTime:4000,shopCost:2000,req:['latte','donut']},
+  {id:'combo_dessert',icon:'🍮',name:'甜点套餐',desc:'草莓蛋糕+冰淇淋',cost:27,price:75,craftTime:5000,shopCost:3500,req:['cake','icecream']},
+  {id:'combo_feast',icon:'🍽',name:'全套大餐',desc:'三明治+珍珠奶茶+甜筒',cost:30,price:85,craftTime:5500,shopCost:5000,req:['sandwich','boba','cone']},
+];
+
+const POP_LV_REP=[0,0,50,120,220,350]; // 各等级所需声望
+
+const UPGRADES = [
+  {id:'speed',icon:'⚡',name:'制作速度',desc:'减少所有饮品制作时间',cost:250,maxLv:5,type:'stat',perLv:0.12},
+  {id:'price',icon:'💰',name:'定价策略',desc:'所有饮品售价提升5%',cost:300,maxLv:5,type:'stat',perLv:0.05},
+  {id:'patience',icon:'❤️',name:'顾客耐心',desc:'顾客等待耐心增加20%',cost:350,maxLv:5,type:'stat',perLv:0.2},
+  {id:'flow',icon:'🚪',name:'客流量',desc:'顾客来访频率提升',cost:400,maxLv:5,type:'stat',perLv:0.15},
+  {id:'decor',icon:'✨',name:'店铺装修',desc:'饮品售价额外提升8%',cost:600,maxLv:3,type:'stat',perLv:0.08},
+  {id:'rep',icon:'⭐',name:'口碑营销',desc:'好评获得双倍声望',cost:500,maxLv:3,type:'stat',perLv:1.0},
+];
+
+// ====================================================================
+// ==================== 像素风精灵图切片系统 ====================
+// 饮品图标：icons/drink_*.png（自动裁剪白底、透明背景）
+// 顾客头像：icons/char_*.png（8个角色，自动裁剪白底、透明背景）
+// ====================================================================
+
+// 游戏饮品ID → 裁剪后的独立PNG文件名映射
+const DRINK_ICON_MAP={
+  espresso:'drink_americano.png',
+  latte:'drink_latte.png',
+  cappuccino:'drink_cappuccino.png',
+  juice:'drink_juice.png',
+  cookie:'drink_cookie.png',
+  matcha:'drink_matcha.png',
+  mocha:'drink_mocha.png',
+  cake:'drink_cake.png',
+  cone:'drink_cone.png',
+  croissant:'drink_croissant.png',
+  boba:'drink_boba.png',
+  sandwich:'drink_sandwich.png',
+  donut:'drink_donut.png',
+  icecream:'drink_icecream.png',
+};
+const CHAR_SPRITE_COUNT=8;
+
+// pxIcon(id): 用<img>直接显示裁剪后的透明PNG
+function pxIcon(id){
+  const file=DRINK_ICON_MAP[id]||'drink_espresso.png';
+  return `<img src="icons/${file}" style="width:100%;height:100%;object-fit:contain;image-rendering:pixelated" alt="${id}"/>`;
+}
+
+// pixelAvatar(): 从8个角色中随机选一个
+function pixelAvatar(){
+  const idx=randInt(0, CHAR_SPRITE_COUNT - 1);
+  return `<img src="icons/char_${idx}.png" style="width:100%;height:100%;object-fit:contain;image-rendering:pixelated" alt="顾客${idx}"/>`;
+}
+const THEMES=[
+  {id:'classic',name:'温馨原木',desc:'暖棕色木质咖啡馆，温馨治愈',repReq:0,bg:'interior-game-bg.jpg'},
+  {id:'forest',name:'森林秘境',desc:'绿植环绕，藤蔓点缀的自然风',repReq:80,bg:'theme-forest.jpg'},
+  {id:'ocean',name:'海边假日',desc:'蓝白地中海风，明亮通透',repReq:150,bg:'theme-ocean.jpg'},
+  {id:'starry',name:'星空之夜',desc:'深蓝紫色调，星空天花板霓虹氛围',repReq:250,bg:'theme-starry.jpg'},
+  {id:'cat',name:'猫咪乐园',desc:'猫爪元素点缀，猫咪出没的可爱咖啡馆',repReq:350,bg:'theme-cat.jpg'},
+];
+
+const GOOD_REVIEWS = ['咖啡太好喝了！下次还来！','环境很温馨，喜欢~','服务速度很快，赞！','价格实惠味道好！','今天的拿铁绝了！','老板人超好的！','推荐给朋友了！','这家店值得反复来！','品质稳定，最爱这口！','治愈系咖啡馆！'];
+const BAD_REVIEWS = ['等太久了…','态度一般般吧','有点贵了','下次不来了','味道一般','不会推荐','有点失望'];
+
+// ====================================================================
+// ==================== 游戏状态 ====================
+// ====================================================================
+let G = {};
+function initState(){
+  G = {
+    money:300,rep:50,day:1,popLv:1,
+    timeMin:540, dayEndMin:1320, // 09:00 ~ 22:00
+    paused:false,dayActive:false,
+    customers:[],nextCustomerId:0,
+    crafting:{}, // recipeId -> {progress,done}
+    servedToday:0,incomeToday:0,expenseToday:0,lostToday:0,
+    reviewsToday:[],
+    unlockedRecipes:['espresso','latte'],
+    unlockedCombos:[],
+    upgradeLevels:{},
+    speedMul:1,priceMul:1,patienceMul:1,flowMul:1,decorMul:0,repMul:1,
+    tickInterval:null,spawnInterval:null,timeInterval:null,patienceInterval:null,
+    lastSpawnTick:0, // 距上次来客的tick数，用于保底机制
+    peakLunchShown:false,peakDinnerShown:false,
+    currentTheme:'classic',
+    unlockedThemes:['classic'],
+    tutorialStep:0, hasServedFirst:false, hasOpenedShop:false, hasCraftedFirst:false,
+  };
+  UPGRADES.forEach(u=>{G.upgradeLevels[u.id]=0;});
+}
+
+// ====================================================================
+// ==================== 工具函数 ====================
+// ====================================================================
+function $(id){return document.getElementById(id);}
+function rand(min,max){return Math.random()*(max-min)+min;}
+function randInt(min,max){return Math.floor(rand(min,max+1));}
+function pick(arr){return arr[randInt(0,arr.length-1)];}
+function pad2(n){return n<10?'0'+n:''+n;}
+function fmtTime(min){let h=Math.floor(min/60),m=min%60;return pad2(h)+':'+pad2(m);}
+function getRecipe(id){return RECIPES.find(r=>r.id===id);}
+function getCombo(id){return COMBOS.find(c=>c.id===id);}
+function getUpgrade(id){return UPGRADES.find(u=>u.id===id);}
+function getCraftTime(r){return Math.max(500,r.craftTime*G.speedMul);}
+function getPrice(r){return Math.round(r.price*G.priceMul*(1+G.decorMul));}
+
+function showNotify(msg,duration){
+  let n=$('notify');
+  n.textContent=msg;
+  n.classList.add('show');
+  clearTimeout(n._t);
+  n._t=setTimeout(()=>n.classList.remove('show'),duration||2000);
+}
+function showPeak(msg){
+  let p=$('peakNotify');
+  $('peakText').textContent=msg;
+  p.classList.add('show');
+  clearTimeout(p._t);
+  p._t=setTimeout(()=>p.classList.remove('show'),3000);
+}
+function showFloatText(x,y,text,cls){
+  let el=document.createElement('div');
+  el.className='float-text '+(cls||'');
+  el.style.left=x+'px';el.style.top=y+'px';
+  el.textContent=text;
+  $('gameArea').appendChild(el);
+  setTimeout(()=>el.remove(),1500);
+}
+function bounceStat(id){
+  let el=$('s'+id);
+  if(el){el.parentElement.classList.remove('bounce');void el.parentElement.offsetWidth;el.parentElement.classList.add('bounce');}
+}
+function shakeStat(id){
+  let el=$('s'+id);
+  if(el){el.parentElement.classList.remove('shake');void el.parentElement.offsetWidth;el.parentElement.classList.add('shake');}
+}
+
+// ====================================================================
+// ==================== 封面/开始流程 ====================
+// ====================================================================
+let coverView='exterior'; // 封面视角：exterior=外景, interior=内景
+function toggleCover(){
+  coverView=(coverView==='exterior')?'interior':'exterior';
+  $('startBg').style.backgroundImage=coverView==='exterior'
+    ? "url('cover-exterior.jpg')" : "url('interior.jpg')";
+}
+function showIntro(){
+  $('startScreen').classList.add('hide');
+  setTimeout(()=>{
+    $('startScreen').style.display='none';
+    $('introScreen').classList.add('show');
+  },500);
+}
+function startGame(){
+  initAudio();
+  sfxDoor();
+  $('introScreen').classList.remove('show');
+  setTimeout(()=>{
+    $('introScreen').style.display='none';
+    initState();
+    renderAll();
+    startDay();
+    // 开局强制生成一位顾客
+    setTimeout(()=>{
+      spawnCustomer();
+      // 等顾客落座后再启动引导
+      setTimeout(startTutorial,800);
+    },300);
+  },500);
+}
+
+// ====================================================================
+// ==================== 时间系统 ====================
+// ====================================================================
+function tickTime(){
+  if(G.paused)return;
+  let speed=1;
+  if(G.timeMin>1080)speed=1.5;
+  G.timeMin+=speed*3;
+  updateClock();
+  // 高峰时段提示
+  if(!G.peakLunchShown&&G.timeMin>=660){showPeak('🍽 午餐时间到了');G.peakLunchShown=true;}
+  if(!G.peakDinnerShown&&G.timeMin>=1020){showPeak('🍽 晚餐时间到了');G.peakDinnerShown=true;}
+  if(G.timeMin>=G.dayEndMin){
+    G.timeMin=G.dayEndMin;
+    endDay();
+  }
+}
+function updateClock(){
+  $('sTime').textContent=fmtTime(G.timeMin);
+  if(G.timeMin>=1140){
+    $('gameArea').classList.remove('day-mode');
+    $('gameArea').classList.add('night-mode');
+  }
+}
+function applyTheme(){
+  let theme=THEMES.find(t=>t.id===G.currentTheme)||THEMES[0];
+  $('gameArea').style.backgroundImage=`url('${theme.bg}')`;
+}
+function checkThemeUnlocks(){
+  THEMES.forEach(t=>{
+    if(G.rep>=t.repReq&&!G.unlockedThemes.includes(t.id)){
+      G.unlockedThemes.push(t.id);
+      showNotify('🎨 新主题解锁：'+t.name+'！',2500);
+    }
+  });
+}
+
+// ====================================================================
+// ==================== 一天流程 ====================
+// ====================================================================
+function startDay(){
+  G.dayActive=true;G.paused=false;
+  G.servedToday=0;G.incomeToday=0;G.expenseToday=0;G.lostToday=0;G.reviewsToday=[];
+  G.peakLunchShown=false;G.peakDinnerShown=false;
+  G.timeMin=540;
+  updateClock();
+  $('gameArea').classList.remove('night-mode');
+  $('gameArea').classList.add('day-mode');
+  applyTheme();
+  // 启动定时器
+  G.timeInterval=setInterval(tickTime,1000);
+  G.spawnInterval=setInterval(tickSpawn,1800);
+  G.patienceInterval=setInterval(tickPatience,200);
+  showNotify('第'+G.day+'天开始营业！',1500);
+}
+function endDay(){
+  G.dayActive=false;G.paused=false;
+  clearInterval(G.timeInterval);clearInterval(G.spawnInterval);clearInterval(G.patienceInterval);
+  G.customers.forEach(c=>{if(c.el)c.el.remove();});
+  G.customers=[];
+  document.querySelectorAll('.bar-seat').forEach(s=>s.classList.remove('occupied'));
+  showDayResult();
+}
+function pauseGame(){
+  if(!G.dayActive)return;
+  G.paused=!G.paused;
+  $('pauseBtn').textContent=G.paused?'▶️':'⏸️';
+  showNotify(G.paused?'已暂停':'继续营业');
+}
+
+// ====================================================================
+// ==================== 顾客系统 ====================
+// ====================================================================
+const BAR_SEATS=4;
+
+function tickSpawn(){
+  if(G.paused||!G.dayActive)return;
+  // 声望系数：rep 50→0.77, 150→1.1, 300+→1.4
+  let repMul=0.6+Math.min(0.8,G.rep/300);
+  // 天数系数：第1天0.8, 第3天0.9, 第5天+1.0
+  let dayMul=Math.min(1.0,0.7+G.day*0.06);
+  let baseChance=0.28*G.flowMul*repMul*dayMul;
+  let hour=Math.floor(G.timeMin/60);
+  if(hour>=11&&hour<=13)baseChance*=1.6;
+  if(hour>=17&&hour<=19)baseChance*=1.5;
+  if(G.timeMin>=1140)baseChance*=0.5;
+  let active=G.customers.filter(c=>c.state!=='leaving'&&c.state!=='served').length;
+  if(active>=8)return;
+  // 保底机制：连续未生成顾客的tick越多，概率越高
+  G.lastSpawnTick++;
+  let finalChance=baseChance*(1+G.lastSpawnTick*0.12);
+  if(Math.random()<finalChance){
+    spawnCustomer();
+    G.lastSpawnTick=0;
+  }
+}
+
+function spawnCustomer(){
+  if(!G.dayActive||G.paused)return;
+  let active=G.customers.filter(c=>c.state!=='leaving'&&c.state!=='served').length;
+  if(active>=8)return;
+  sfxBell();
+  let availRecipes=RECIPES.filter(r=>G.unlockedRecipes.includes(r.id));
+  let availCombos=[]; // 套餐玩法开发中，暂不生成套餐顾客
+  let order, isCombo=false;
+  // 15%概率点套餐（如果已解锁套餐）
+  if(availCombos.length>0&&Math.random()<0.15){
+    order=pick(availCombos);
+    isCombo=true;
+  }else{
+    order=pick(availRecipes);
+  }
+  let cId=G.nextCustomerId++;
+  let patienceTime=(25000+order.craftTime)*G.patienceMul;
+  if(order.price>=25)patienceTime*=0.85;
+  // 套餐顾客耐心多20%
+  if(isCombo)patienceTime*=1.2;
+  // 找空吧台座位
+  let emptySeat=-1;
+  for(let i=0;i<BAR_SEATS;i++){
+    if(!G.customers.some(c=>c.seatIndex===i&&(c.state==='seated'||c.state==='walking-to-bar'))){emptySeat=i;break;}
+  }
+  let goingToBar=emptySeat>=0;
+  let orderIconHtml=isCombo?order.icon:pxIcon(order.pxId||order.id);
+  let c={
+    id:cId,orderId:order.id,orderName:order.name,isCombo:isCombo,
+    seatIndex:goingToBar?emptySeat:-1,
+    patience:100,patienceTime:patienceTime,elapsed:0,
+    state:goingToBar?'walking-to-bar':'walking-to-wait',
+    el:null,
+  };
+  let el=document.createElement('div');
+  el.className='customer walking';
+  let avatar=pixelAvatar();
+  el.innerHTML=`<div class="c-patience"><div class="fill" style="width:100%"></div></div><div class="c-bubble"><span class="order-icon" style="display:inline-flex;width:16px;height:16px;vertical-align:middle">${orderIconHtml}</span><span>${order.name}</span></div><div class="c-avatar">${avatar}</div>`;
+  el.addEventListener('click',()=>{tryServe(cId);});
+  c.el=el;
+  if(goingToBar){
+    let seat=document.querySelector('.bar-seat[data-seat="'+emptySeat+'"]');
+    seat.appendChild(el);
+    seat.classList.add('occupied');
+    setTimeout(()=>{if(!c.el||c.state==='leaving')return;c.state='seated';el.classList.remove('walking');el.classList.add('seated');},600);
+  }else{
+    $('waitArea').appendChild(el);
+    setTimeout(()=>{if(!c.el||c.state==='leaving')return;c.state='waiting';el.classList.remove('walking');},600);
+  }
+  G.customers.push(c);
+}
+
+function promoteFromWait(){
+  let waiter=G.customers.find(c=>c.state==='waiting');
+  if(!waiter)return;
+  let emptySeat=-1;
+  for(let i=0;i<BAR_SEATS;i++){
+    if(!G.customers.some(c=>c.seatIndex===i&&(c.state==='seated'||c.state==='walking-to-bar'))){emptySeat=i;break;}
+  }
+  if(emptySeat<0)return;
+  waiter.seatIndex=emptySeat;
+  waiter.state='walking-to-bar';
+  let seat=document.querySelector('.bar-seat[data-seat="'+emptySeat+'"]');
+  seat.appendChild(waiter.el);
+  seat.classList.add('occupied');
+  waiter.el.classList.add('walking');
+  setTimeout(()=>{if(!waiter.el||waiter.state==='leaving')return;waiter.state='seated';waiter.el.classList.remove('walking');waiter.el.classList.add('seated');},600);
+}
+
+function tickPatience(){
+  if(G.paused||!G.dayActive)return;
+  let dt=200;
+  let toRemove=[];
+  G.customers.forEach(c=>{
+    if(c.state==='leaving'||c.state==='served'||c.state==='walking-to-bar'||c.state==='walking-to-wait')return;
+    c.elapsed+=dt;
+    c.patience=Math.max(0,100-c.elapsed/c.patienceTime*100);
+    if(c.el){
+      let fill=c.el.querySelector('.c-patience .fill');
+      if(fill){
+        fill.style.width=c.patience+'%';
+        if(c.patience>10)fill.style.background='#8B9E6B';
+        else fill.style.background='#B05050';
+      }
+    }
+    if(c.patience<=0){
+      c.state='leaving';
+      G.lostToday++;
+      G.rep=Math.max(0,G.rep-2);
+      shakeStat('Rep');
+      G.reviewsToday.push({good:false,text:pick(BAD_REVIEWS)});
+      if(c.el){
+        c.el.classList.add('angry-leave');
+        let rect=c.el.getBoundingClientRect(),gRect=$('gameArea').getBoundingClientRect();
+        showFloatText(rect.left-gRect.left+rect.width/2,rect.top-gRect.top,'-2⭐ 愤怒离开','bad');
+      }
+      if(c.seatIndex>=0){
+        let seat=document.querySelector('.bar-seat[data-seat="'+c.seatIndex+'"]');
+        if(seat)seat.classList.remove('occupied');
+      }
+      setTimeout(()=>{if(c.el)c.el.remove();},1200);
+      toRemove.push(c.id);
+    }
+  });
+  if(toRemove.length){
+    G.customers=G.customers.filter(c=>!toRemove.includes(c.id));
+    updateStats();
+    setTimeout(promoteFromWait,100);
+  }
+}
+
+// ====================================================================
+// ==================== 制作系统 ====================
+// ====================================================================
+function tryCraft(itemId){
+  if(G.paused)return;
+  // 检查是单品还是套餐
+  let r=getRecipe(itemId);
+  let cb=getCombo(itemId);
+  let item=r||cb;
+  if(!item)return;
+  let isCombo=!!cb;
+  if(isCombo){
+    if(!G.unlockedCombos.includes(itemId))return;
+  }else{
+    if(!G.unlockedRecipes.includes(itemId))return;
+  }
+  if(G.crafting[itemId])return; // 正在制作
+  if(G.money<item.cost){
+    showNotify('金币不足！需要'+item.cost+'💰');
+    shakeStat('Money');
+    return;
+  }
+  // 扣材料费
+  G.money-=item.cost;
+  G.expenseToday+=item.cost;
+  updateStats();
+  G.crafting[itemId]={progress:0,start:Date.now(),duration:getCraftTime(item),isCombo:isCombo};
+  // UI反馈
+  let btn=document.querySelector('.recipe-btn[data-recipe="'+itemId+'"]');
+  if(btn)btn.classList.add('crafting');
+  showNotify('制作中：'+item.name+'…',1000);
+  // 进度条实时更新
+  let progressBar=btn?btn.querySelector('.craft-progress .bar'):null;
+  function updateProgress(){
+    if(!G.crafting[itemId]||G.crafting[itemId].ready)return;
+    let elapsed=Date.now()-G.crafting[itemId].start;
+    let pct=Math.min(100,elapsed/G.crafting[itemId].duration*100);
+    if(progressBar)progressBar.style.width=pct+'%';
+    if(pct<100)requestAnimationFrame(updateProgress);
+  }
+  requestAnimationFrame(updateProgress);
+
+  // 完成回调
+  setTimeout(()=>{
+    if(!G.crafting[itemId])return;
+    G.crafting[itemId].ready=true;
+    sfxDing();
+    let btn2=document.querySelector('.recipe-btn[data-recipe="'+itemId+'"]');
+    if(btn2){
+      btn2.classList.remove('crafting');
+      btn2.classList.add('ready-flash');
+      btn2.style.boxShadow='0 0 0 3px var(--c-success)';
+      let bar2=btn2.querySelector('.craft-progress .bar');
+      if(bar2)bar2.style.width='100%';
+    }
+    showNotify(item.name+' 已做好！点击顾客送达',1500);
+    // 制作完成后推进新手引导
+    if(G.tutorialStep===0&&$('tutorialOverlay').style.display!=='none'){
+      G.tutorialStep=1;
+      showTutorialStep();
+    }
+    // 12秒后没人取自动浪费
+    setTimeout(()=>{
+      if(G.crafting[itemId]&&G.crafting[itemId].ready){
+        delete G.crafting[itemId];
+        let btn3=document.querySelector('.recipe-btn[data-recipe="'+itemId+'"]');
+        if(btn3){btn3.classList.remove('ready-flash');btn3.style.boxShadow='';}
+        showNotify(item.name+' 放凉了…',1000);
+      }
+    },12000);
+  },G.crafting[itemId].duration);
+}
+
+function tryServe(customerId){
+  let c=G.customers.find(c=>c.id===customerId);
+  if(!c)return;
+  if(c.state==='waiting'||c.state==='walking-to-wait'){showNotify('顾客在等待区排队中…',1000);return;}
+  if(c.state!=='seated')return;
+  if(G.crafting[c.orderId]&&G.crafting[c.orderId].ready){
+    delete G.crafting[c.orderId];
+    let r=getRecipe(c.orderId);
+    let cb=getCombo(c.orderId);
+    let item=r||cb;
+    let earned=getPrice(item);
+    let repGain=Math.ceil(c.patience/33);
+    if(c.isCombo)repGain+=1; // 套餐多1点声望
+    if(G.repMul>1)repGain*=G.repMul;
+    repGain=Math.round(repGain);
+    G.money+=earned;
+    G.incomeToday+=earned;
+    G.rep+=repGain;
+    G.servedToday++;
+    sfxCash();
+    bounceStat('Money');
+    bounceStat('Rep');
+    let review={good:true,text:pick(GOOD_REVIEWS)};
+    if(c.patience<30)review={good:false,text:pick(BAD_REVIEWS)};
+    G.reviewsToday.push(review);
+    let rect=c.el.getBoundingClientRect(),gRect=$('gameArea').getBoundingClientRect();
+    let cx=rect.left-gRect.left+rect.width/2,cy=rect.top-gRect.top;
+    showFloatText(cx,cy,'+'+earned+'💰','money');
+    setTimeout(()=>showFloatText(cx,cy+20,'+'+repGain+'⭐','rep'),200);
+    c.state='served';
+    c.el.classList.remove('seated');
+    c.el.classList.add('leaving');
+    if(c.seatIndex>=0){
+      let seat=$('.bar-seat[data-seat="'+c.seatIndex+'"]');
+      if(seat)seat.classList.remove('occupied');
+    }
+    setTimeout(()=>{if(c.el)c.el.remove();},1200);
+    G.customers=G.customers.filter(cc=>cc.id!==c.id);
+    let btn=document.querySelector('.recipe-btn[data-recipe="'+c.orderId+'"]');
+    if(btn){btn.classList.remove('ready-flash');btn.style.boxShadow='';}
+    checkLevelUp();
+    checkThemeUnlocks();
+    G.hasServedFirst=true;
+    updateStats();
+    // 送达后推进新手引导
+    if(G.tutorialStep===1&&$('tutorialOverlay').style.display!=='none'){
+      G.tutorialStep=2;
+      showTutorialStep();
+    }
+    setTimeout(promoteFromWait,100);
+  }else{
+    let r=getRecipe(c.orderId);
+    let cb=getCombo(c.orderId);
+    let item=r||cb;
+    if(!item)return;
+    if(G.crafting[c.orderId]){showNotify(item.name+' 还在做，稍等~',1000);}
+    else{showNotify('需要先制作'+item.name+'！',1000);}
+  }
+}
+
+// ====================================================================
+// ==================== 升级系统 ====================
+// ====================================================================
+function checkLevelUp(){
+  let leveled=false;
+  while(G.popLv<POP_LV_REP.length&&G.rep>=POP_LV_REP[G.popLv+1]){
+    G.popLv++;
+    leveled=true;
+    showLevelUpPopup();
+  }
+  if(leveled){
+    bounceStat('Pop');
+    checkThemeUnlocks();
+  }
+  updateStats();
+}
+
+// ====================================================================
+// ==================== 主题系统 ====================
+// ====================================================================
+function openThemes(){
+  if(G.dayActive&&!G.paused)pauseGame();
+  let html='<div class="panel-title">🎨 主题换装</div>';
+  html+='<div style="font-size:11px;color:#8A5A2B;margin-bottom:10px;text-align:center;">当前声望：'+Math.round(G.rep)+'⭐ &nbsp; 主题解锁后可自由切换</div>';
+  THEMES.forEach(t=>{
+    let unlocked=G.unlockedThemes.includes(t.id);
+    let active=G.currentTheme===t.id;
+    let canUnlock=G.rep>=t.repReq;
+    html+=`
+      <div class="upgrade-item ${active?'maxed':''}" style="${!unlocked&&!canUnlock?'opacity:.5;':''}">
+        <div class="upg-icon" style="background:url('${t.bg}') center/${Math.round(100*3)}% auto no-repeat;width:60px;height:60px;border-radius:8px;border:2px solid #8A5A2B;${!unlocked&&!canUnlock?'filter:grayscale(1) brightness(.6);':''}"></div>
+        <div class="upg-info">
+          <div class="upg-name">${t.name}${active?' (当前)':unlocked?'':' (需'+t.repReq+'⭐)'}</div>
+          <div class="upg-desc">${t.desc}</div>
+        </div>
+        <button class="upg-btn ${active?'maxed':unlocked?'affordable':'disabled'}"
+          onclick="switchTheme('${t.id}')" ${active||!unlocked&&!canUnlock?'disabled':''}>
+          ${active?'使用中':unlocked?'切换':'🔒 '+t.repReq+'⭐'}
+        </button>
+      </div>
+    `;
+  });
+  html+='<button class="panel-close" onclick="closeOverlay()">✕</button>';
+  $('panel').innerHTML=html;
+  $('overlay').classList.add('show');
+}
+function switchTheme(id){
+  let t=THEMES.find(t=>t.id===id);
+  if(!t)return;
+  if(!G.unlockedThemes.includes(id)){
+    if(G.rep>=t.repReq){
+      G.unlockedThemes.push(id);
+    }else{
+      showNotify('声望不足，需要'+t.repReq+'⭐');
+      return;
+    }
+  }
+  G.currentTheme=id;
+  applyTheme();
+  showNotify('✅ 已切换主题：'+t.name,1500);
+  openThemes();
+}
+
+// ====================================================================
+// ==================== 升级商店（双Tab） ====================
+// ====================================================================
+let shopTab='recipes'; // 'recipes' | 'stats'
+function openShop(){
+  if(G.dayActive&&!G.paused)pauseGame();
+  G.hasOpenedShop=true;
+  let html='<div class="panel-title">🛒 商店</div>';
+  // Tab切换
+  html+='<div class="shop-tabs">';
+  html+='<button class="shop-tab '+(shopTab==='recipes'?'active':'')+'" onclick="shopTab=\'recipes\';openShop();">品类解锁</button>';
+  html+='<button class="shop-tab '+(shopTab==='stats'?'active':'')+'" onclick="shopTab=\'stats\';openShop();">属性升级</button>';
+  html+='</div>';
+  html+='<div style="font-size:11px;color:#8A5A2B;margin-bottom:10px;text-align:center;">💰 金币：'+G.money+' &nbsp; ⭐ 声望：'+Math.round(G.rep)+' &nbsp; 🔥 Lv.'+G.popLv+'</div>';
+  if(shopTab==='recipes'){
+    html+='<div style="font-size:11px;color:#A1887F;margin-bottom:8px;">升级后在商店花钱解锁新品类</div>';
+    // 单品
+    RECIPES.forEach(r=>{
+      let unlocked=G.unlockedRecipes.includes(r.id);
+      let canBuy=G.popLv>=r.unlockLv&&!unlocked&&G.money>=r.shopCost;
+      let lockedByLv=G.popLv<r.unlockLv;
+      html+=`
+        <div class="upgrade-item ${unlocked?'maxed':''}">
+          <div class="upg-icon" style="overflow:hidden;">${pxIcon(r.pxId||r.id)}</div>
+          <div class="upg-info">
+            <div class="upg-name">${r.name} ${unlocked?'(已解锁)':''}</div>
+            <div class="upg-desc">成本${r.cost}💰 → 售价${r.price}💰 &nbsp; 制作${(r.craftTime/1000).toFixed(1)}秒</div>
+          </div>
+          <button class="upg-btn ${unlocked?'maxed':canBuy?'affordable':'disabled'}"
+            onclick="buyRecipe('${r.id}')" ${unlocked||!canBuy?'disabled':''}>
+            ${unlocked?'✅ 已解锁':lockedByLv?'🔒 Lv.'+r.unlockLv:r.shopCost+'💰'}
+          </button>
+        </div>
+      `;
+    });
+    // 套餐
+    html+='<div style="font-size:13px;font-weight:800;color:#5D4037;margin:14px 0 6px;">🍱 套餐</div>';
+    html+='<div style="text-align:center;padding:18px 12px;color:#A1887F;font-size:12px;line-height:1.6;background:#FFF8F0;border-radius:10px;border:1px dashed #D7CCC8;">套餐玩法正在开发中<br>敬请期待！</div>';
+  }else{
+    // 属性升级Tab
+    UPGRADES.forEach(u=>{
+      let lv=G.upgradeLevels[u.id]||0;
+      let maxed=lv>=u.maxLv;
+      let cost=u.cost*(lv+1);
+      let affordable=G.money>=cost&&!maxed;
+      html+=`
+        <div class="upgrade-item ${maxed?'maxed':''}">
+          <div class="upg-icon">${u.icon}</div>
+          <div class="upg-info">
+            <div class="upg-name">${u.name} ${maxed?'(满级)':'Lv.'+lv}</div>
+            <div class="upg-desc">${u.desc}</div>
+            <div class="upg-level">${Array(u.maxLv).fill(0).map((_,i)=>'<div class="dot '+(i<lv?'on':'')+'"></div>').join('')}</div>
+          </div>
+          <button class="upg-btn ${affordable?'affordable':'disabled'} ${maxed?'maxed':''}"
+            onclick="buyUpgradeStat('${u.id}')" ${maxed||!affordable?'disabled':''}>
+            ${maxed?'已满级':cost+'💰'}
+          </button>
+        </div>
+      `;
+    });
+  }
+  html+='<button class="panel-close" onclick="closeOverlay()">✕</button>';
+  $('panel').innerHTML=html;
+  $('overlay').classList.add('show');
+}
+function buyRecipe(id){
+  let r=getRecipe(id);
+  if(!r)return;
+  if(G.unlockedRecipes.includes(id))return;
+  if(G.popLv<r.unlockLv){showNotify('需要店铺等级 Lv.'+r.unlockLv+'！');return;}
+  if(G.money<r.shopCost){showNotify('金币不足！');return;}
+  G.money-=r.shopCost;
+  G.unlockedRecipes.push(id);
+  showNotify('🎉 解锁新品类：'+r.name+'！',2000);
+  bounceStat('Money');
+  updateStats();
+  renderCraftZone();
+  openShop();
+}
+function buyCombo(id){
+  let cb=getCombo(id);
+  if(!cb)return;
+  if(G.unlockedCombos.includes(id))return;
+  if(!cb.req.every(rid=>G.unlockedRecipes.includes(rid))){showNotify('需先解锁套餐所需单品！');return;}
+  if(G.money<cb.shopCost){showNotify('金币不足！');return;}
+  G.money-=cb.shopCost;
+  G.unlockedCombos.push(id);
+  showNotify('🎉 解锁套餐：'+cb.name+'！',2000);
+  bounceStat('Money');
+  updateStats();
+  renderCraftZone();
+  openShop();
+}
+function buyUpgradeStat(id){
+  let u=getUpgrade(id);
+  let lv=G.upgradeLevels[id]||0;
+  if(lv>=u.maxLv)return;
+  let cost=u.cost*(lv+1);
+  if(G.money<cost){showNotify('金币不足！');return;}
+  G.money-=cost;
+  G.upgradeLevels[id]=lv+1;
+  applyUpgradeStat(id);
+  showNotify('✅ '+u.name+' 升级到 Lv.'+(lv+1)+'！',2000);
+  bounceStat('Money');
+  updateStats();
+  openShop();
+}
+function applyUpgradeStat(id){
+  let lv=G.upgradeLevels[id];
+  switch(id){
+    case'speed':G.speedMul=Math.max(0.4,1-lv*0.12);break;
+    case'price':G.priceMul=1+lv*0.05;break;
+    case'patience':G.patienceMul=1+lv*0.2;break;
+    case'flow':G.flowMul=1+lv*0.15;break;
+    case'decor':G.decorMul=lv*0.08;break;
+    case'rep':G.repMul=1+lv;break;
+  }
+}
+
+// ====================================================================
+// ==================== 升级弹窗 ====================
+// ====================================================================
+function showLevelUpPopup(){
+  G.paused=true;
+  // 找到当前等级可解锁的新品类
+  let newRecipes=RECIPES.filter(r=>r.unlockLv===G.popLv).map(r=>r.name);
+  let info=newRecipes.length?'商店新增可解锁：'+newRecipes.join('、'):'继续努力解锁更多品类！';
+  let html=`
+    <div style="text-align:center;">
+      <div style="font-size:56px;margin:10px 0;">🎉</div>
+      <div style="font-size:24px;font-weight:900;color:#8B5E3C;">店铺升级！</div>
+      <div style="font-size:18px;font-weight:700;color:#E8956B;margin:8px 0;">Lv.${G.popLv}</div>
+      <div style="font-size:13px;color:#5D4037;margin:10px 0;line-height:1.6;">${info}</div>
+      <button class="btn-primary" onclick="closeLevelUp()">我知道啦</button>
+    </div>
+  `;
+  $('panel').innerHTML=html;
+  $('overlay').classList.add('show');
+}
+function closeLevelUp(){
+  closeOverlay();
+}
+
+// ====================================================================
+// ==================== 日结 ====================
+// ====================================================================
+function showDayResult(){
+  let net=G.incomeToday-G.expenseToday;
+  let avgRep=G.servedToday>0?Math.round(G.rep/G.servedToday*10)/10:0;
+  let html=`
+    <div class="day-result">
+      <div class="big-emoji">${net>0?'🎉':net<0?'😅':'😐'}</div>
+      <h2>第${G.day}天结算</h2>
+      <div class="day-num">营业时长 ${fmtTime(540)} ~ ${fmtTime(Math.min(G.timeMin,G.dayEndMin))}</div>
+      <div class="result-grid">
+        <div class="result-card cust"><div class="label">服务顾客</div><div class="value">${G.servedToday}</div></div>
+        <div class="result-card income"><div class="label">今日收入</div><div class="value">+${G.incomeToday}💰</div></div>
+        <div class="result-card expense"><div class="label">今日成本</div><div class="value">-${G.expenseToday}💰</div></div>
+        <div class="result-card rep"><div class="label">当前声望</div><div class="value">${G.rep}⭐</div></div>
+      </div>
+      <div style="font-size:18px;font-weight:800;color:${net>=0?'var(--c-success)':'var(--c-danger)'};margin:10px 0;">
+        净收益：${net>=0?'+':''}${net}💰
+      </div>
+      ${G.lostToday>0?'<div style="color:var(--c-danger);font-size:13px;">流失顾客：'+G.lostToday+'人</div>':''}
+      <div class="review-box">
+        <div style="font-weight:700;font-size:14px;margin-bottom:6px;">📋 顾客评价</div>
+        ${G.reviewsToday.length?G.reviewsToday.map(r=>'<div class="review">'+(r.good?'👍':'👎')+' '+r.text+'</div>').join(''):'<div class="review">今天没有评价</div>'}
+      </div>
+      <button class="btn-primary" onclick="nextDay()">开启第${G.day+1}天</button>
+    </div>
+    <button class="panel-close" onclick="closeOverlay()">✕</button>
+  `;
+  $('panel').innerHTML=html;
+  $('overlay').classList.add('show');
+}
+function nextDay(){
+  closeOverlay();
+  G.day++;
+  renderAll();
+  startDay();
+}
+
+// ====================================================================
+// ==================== 渲染 ====================
+// ====================================================================
+function renderAll(){
+  updateStats();
+  renderCraftZone();
+}
+function updateStats(){
+  $('sMoney').textContent=G.money;
+  $('sRep').textContent=Math.round(G.rep);
+  $('sDay').textContent='第'+G.day+'天';
+  $('sPop').textContent='Lv.'+G.popLv;
+}
+function renderCraftZone(){
+  let zone=$('craftZone');
+  zone.innerHTML='';
+  RECIPES.forEach(r=>{
+    let unlocked=G.unlockedRecipes.includes(r.id);
+    let btn=document.createElement('button');
+    btn.className='recipe-btn'+(!unlocked?' locked':'');
+    btn.dataset.recipe=r.id;
+    btn.innerHTML=unlocked
+      ? `<div class="r-icon">${pxIcon(r.pxId||r.id)}</div><div class="r-name">${r.name}</div><div class="r-cost">${r.cost}💰 → ${getPrice(r)}💰</div><div class="craft-progress"><div class="bar"></div></div>`
+      : `<div class="lock-icon">🔒</div><div class="r-icon">${pxIcon(r.pxId||r.id)}</div><div class="r-name">${r.name}</div><div class="unlock-lv">Lv.${r.unlockLv}</div>`;
+    btn.disabled=!unlocked;
+    btn.addEventListener('click',()=>tryCraft(r.id));
+    zone.appendChild(btn);
+  });
+  // 套餐按钮（套餐玩法开发中，暂不渲染）
+  // COMBOS.forEach(cb=>{ ... });
+}
+function closeOverlay(){
+  $('overlay').classList.remove('show');
+  if(G.dayActive)G.paused=false;
+  $('pauseBtn').textContent=G.paused?'▶️':'⏸️';
+}
+
+// ====================================================================
+// ==================== 新手引导 ====================
+// ====================================================================
+const TUTORIAL_STEPS=[
+  {text:'欢迎来到你的咖啡馆！点击下方的饮品按钮来制作饮品。',selector:'.recipe-btn[data-recipe="espresso"]',action:'craft',bubblePos:'above'},
+  {text:'饮品做好后会发光，点击吧台顾客送上去。',selector:'.bar-seat[data-seat="0"] .customer',action:'serve',bubblePos:'above'},
+  {text:'顾客头顶的绿条是耐心条，上菜越快评价越好，耐心耗尽顾客会离开哦！',selector:'.bar-seat[data-seat="0"] .customer .c-patience',action:'patience',bubblePos:'above'},
+  {text:'赚到金币后，点击「商店」解锁更多品类！',selector:'.top-btn[onclick="openShop()"]',action:'shop',bubblePos:'below'},
+  {text:'点击「主题」按钮换换店铺风格吧！',selector:'.top-btn[onclick="openThemes()"]',action:'theme',bubblePos:'below'},
+];
+function startTutorial(){
+  G.tutorialStep=0;
+  // 引导期间暂停游戏（不清除已有顾客）
+  G.paused=true;
+  $('pauseBtn').textContent='▶️';
+  showTutorialStep();
+}
+function showTutorialStep(){
+  let step=TUTORIAL_STEPS[G.tutorialStep];
+  if(!step){endTutorial();return;}
+  let overlay=$('tutorialOverlay');
+  overlay.style.display='block';
+  $('tutText').textContent=step.text;
+  let target=document.querySelector(step.selector);
+  let bubble=$('tutorialBubble');
+  let hole=$('tutorialHole');
+  if(target){
+    let rect=target.getBoundingClientRect();
+    // 高亮框：限制最大高度，防止吧台等过高元素导致框太高
+    let holeH=rect.height;
+    let holeTop=rect.top;
+    if(step.maxH&&holeH>step.maxH){
+      holeH=step.maxH;
+      // 高亮框垂直居中于目标元素
+      holeTop=rect.top+(rect.height-holeH)/2;
+    }
+    hole.style.left=rect.left-6+'px';
+    hole.style.top=holeTop-6+'px';
+    hole.style.width=rect.width+12+'px';
+    hole.style.height=holeH+12+'px';
+    // 先设置文字，再测量气泡实际高度
+    let bw=240;
+    bubble.style.width=bw+'px';
+    bubble.style.left='-9999px';
+    bubble.style.top='0';
+    let actualBh=bubble.offsetHeight;
+    let holeBottom=holeTop+holeH;
+    let bx=rect.left+rect.width/2-bw/2;
+    let by;
+    if(step.bubblePos==='above'){
+      by=holeTop-actualBh-12;
+    }else if(step.bubblePos==='below'){
+      by=holeBottom+12;
+    }else{
+      // 自动：下方放不下就放上方
+      by=holeBottom+12;
+      if(by+actualBh>window.innerHeight)by=holeTop-actualBh-12;
+    }
+    if(bx<10)bx=10;
+    if(bx+bw>window.innerWidth)bx=window.innerWidth-bw-10;
+    if(by<10)by=10;
+    bubble.style.left=bx+'px';
+    bubble.style.top=by+'px';
+  }else{
+    hole.style.left='50%';hole.style.top='50%';hole.style.width='0';hole.style.height='0';
+    bubble.style.left='50%';bubble.style.top='50%';
+  }
+}
+function nextTutorialStep(){
+  G.tutorialStep++;
+  if(G.tutorialStep>=TUTORIAL_STEPS.length){
+    endTutorial();
+  }else{
+    showTutorialStep();
+  }
+}
+function endTutorial(){
+  $('tutorialOverlay').style.display='none';
+  // 引导结束，恢复游戏
+  G.paused=false;
+  $('pauseBtn').textContent='⏸️';
+}
+
+// ====================================================================
+// ==================== 初始化 ====================
+// ====================================================================
+initState();
+</script>
+</body>
+</html>
